@@ -12,7 +12,8 @@ android {
         applicationId = "com.martinb.marbleos"
         minSdk = 24
         targetSdk = 34
-        versionCode = buildNumber
+        // +2000: above the MartinB hub factory builds (1000+), so this APK installs over them and keeps the saved game.
+        versionCode = buildNumber + 2000
         versionName = "1.0.$buildNumber"
     }
 

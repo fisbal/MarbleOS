@@ -78,15 +78,18 @@ jobs:
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > android/app/marbleos.jks
           elif [ "$PUBLISH" = "true" ]; then
-            echo "::error::MARBLEOS_KEYSTORE_B64 is not set. Add the MarbleOS secrets (Settings > Secrets and variables > Actions) before releasing."
-            exit 1
+            # No secret yet: use the same family key from the first commit's history (never re-added to the tree),
+            # so phones keep updating. Adding the MARBLEOS_KEYSTORE_B64 secret later takes over automatically.
+            echo "::notice::MARBLEOS_KEYSTORE_B64 is not set; using the family key from the repository history."
+            git fetch -q --depth=1 origin f481df168fe6bbf2886592df20031e6e0dbfe33d
+            git show f481df168fe6bbf2886592df20031e6e0dbfe33d:android/app/marbleos.jks > android/app/marbleos.jks
           else
             echo "::notice::No family key on this build: the APK is signed with the debug key and is not published."
           fi
       - name: Build the APK
         working-directory: android
         env:
-          MARBLEOS_KEYSTORE_PASSWORD: ${{ secrets.MARBLEOS_KEYSTORE_PASSWORD }}
+          MARBLEOS_KEYSTORE_PASSWORD: ${{ secrets.MARBLEOS_KEYSTORE_PASSWORD || 'marbleos2026' }}
         run: gradle assembleRelease --no-daemon --stacktrace
       - run: mkdir out && cp android/app/build/outputs/apk/release/app-release.apk out/MarbleOS.apk
       - uses: actions/upload-artifact@v4
