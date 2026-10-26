@@ -12,6 +12,7 @@
       {
         "label": "main",
         "title": "MarbleOS",
+        "zoomHotkeysEnabled": true,
         "width": 560,
         "height": 920,
         "minWidth": 320,
