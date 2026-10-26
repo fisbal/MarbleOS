@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state);
         else web.loadUrl(HOME);
         hideSystemBars();
+        if (state == null) UpdateCheck.run(this);
     }
 
     @SuppressWarnings("deprecation")
