@@ -1,0 +1,14 @@
+{
+  "name": "marbleos",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MarbleOS: a 3D marble shooter by Martin B, for the web, Android, Windows and Mac",
+  "scripts": {
+    "tauri": "tauri",
+    "check:screens": "node scripts/check-screens.mjs android/app/src/main/assets screens"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "playwright": "1.48.2"
+  }
+}

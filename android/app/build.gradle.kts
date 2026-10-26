@@ -16,20 +16,24 @@ android {
         versionName = "1.0.$buildNumber"
     }
 
-    // Family build key: kept in the repo so every new APK installs over the previous one.
+    // Family build key: the workflow decodes the MARBLEOS_KEYSTORE_B64 secret into marbleos.jks and passes
+    // the password as an env var, so every new APK installs over the previous one and keeps the saved game.
+    // Never commit the key or its password.
+    val keystore = file("marbleos.jks")
     signingConfigs {
         create("family") {
-            storeFile = file("marbleos.jks")
-            storePassword = "marbleos2026"
+            storeFile = keystore
+            storePassword = System.getenv("MARBLEOS_KEYSTORE_PASSWORD")
             keyAlias = "marbleos"
-            keyPassword = "marbleos2026"
+            keyPassword = System.getenv("MARBLEOS_KEYSTORE_PASSWORD")
         }
     }
 
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("family")
+            // Pull requests build without the secret: they get the debug key and are never published.
+            signingConfig = signingConfigs.getByName(if (keystore.exists()) "family" else "debug")
         }
     }
 
