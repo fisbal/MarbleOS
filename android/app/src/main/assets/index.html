@@ -441,11 +441,15 @@ function stopMusic(){if(musTimer){clearInterval(musTimer);musTimer=null}}
 
 // ===================== 3D ENGINE =====================
 const pf=$('pf'),glc=$('gl'),hud=$('hud'),hctx=hud.getContext('2d');
+// ---------- Quality: full on computers, lighter on phones, and one step lower by itself if frames drop ----------
+// 2 = full (computer), 1 = phone, 0 = light. Remembered between games, so a slow phone starts light.
+const MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(matchMedia&&matchMedia('(pointer:coarse)').matches);
+let Q=MOBILE?1:2;try{const sq=localStorage.getItem('mos.quality');if(sq!==null&&+sq<Q)Q=+sq}catch(e){}
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas:glc,antialias:true,powerPreference:'high-performance'})}
 catch(e){OV.innerHTML='<div class="ovin"><p class="err">This device could not start 3D graphics (WebGL). Try another browser. / Cet appareil ne peut pas afficher la 3D.</p></div>';return}
 renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=Q>=2?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#000000');
 const camera=new THREE.PerspectiveCamera(30,1,.1,100);
 const pmrem=new THREE.PMREMGenerator(renderer);
@@ -457,7 +461,7 @@ const glowTex=(()=>{const c=mkCanvas(64,64),g=c.getContext('2d'),gr=g.createRadi
 
 // Lights (light comes from the top-left, like the carved bevels)
 const hemi=new THREE.HemisphereLight(0xffffff,0x222222,.55);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(-1.8,8,-2.6);sun.target.position.set(0,0,0);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(-1.8,8,-2.6);sun.target.position.set(0,0,0);sun.castShadow=Q>0;sun.shadow.mapSize.set(Q>=2?2048:1024,Q>=2?2048:1024);
 Object.assign(sun.shadow.camera,{left:-2.7,right:2.7,top:3.7,bottom:-3.7,near:1,far:20});sun.shadow.bias=-.0005;sun.shadow.normalBias=.01;scene.add(sun,sun.target);
 const flashLight=new THREE.PointLight(0xffffff,0,2.4,2);scene.add(flashLight);
 const projLight=new THREE.PointLight(0xffffff,0,1.3,2);scene.add(projLight);
@@ -483,7 +487,8 @@ function marbleTextures(C,k){const c=mkCanvas(512,256),g=c.getContext('2d'),b=mk
     glyphPath(g,k,44);g.strokeStyle=rgb(hx(C.d),.95);g.lineWidth=9;g.stroke();g.save();g.translate(-1.6,-1.8);glyphPath(g,k,44);g.strokeStyle=rgb(hx(C.l),.95);g.lineWidth=3.5;g.stroke();g.restore();g.restore();
     bg.save();bg.translate(cx,128);bg.lineCap='round';bg.strokeStyle='#ffffff';bg.lineWidth=4;bg.beginPath();bg.arc(0,0,62,0,TAU);bg.stroke();glyphPath(bg,k,44);bg.strokeStyle='#202020';bg.lineWidth=9;bg.stroke();bg.restore()});
   return{map:canvasTex(c),bump:canvasTex(b,false)}}
-const MATS=COLORS.map((C,i)=>{const tx=marbleTextures(C,i);return new THREE.MeshPhysicalMaterial({map:tx.map,bumpMap:tx.bump,bumpScale:.006,roughness:.12,metalness:0,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:1.5})});
+const MATS=COLORS.map((C,i)=>{const tx=marbleTextures(C,i);return Q>=2?new THREE.MeshPhysicalMaterial({map:tx.map,bumpMap:tx.bump,bumpScale:.006,roughness:.12,metalness:0,clearcoat:1,clearcoatRoughness:.04,envMapIntensity:1.5})
+  :new THREE.MeshStandardMaterial({map:tx.map,bumpMap:tx.bump,bumpScale:.006,roughness:.08,metalness:0,envMapIntensity:1.7})});
 const rainbowMat=(()=>{const c=mkCanvas(512,256),g=c.getContext('2d');COLORS.forEach((C,i)=>{g.fillStyle=C.c;g.fillRect(i*512/6,0,512/6+1,256)});
   const gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'rgba(0,0,0,.35)');gr.addColorStop(.5,'rgba(255,255,255,.12)');gr.addColorStop(1,'rgba(0,0,0,.35)');g.fillStyle=gr;g.fillRect(0,0,512,256);
   [128,384].forEach(cx=>{g.save();g.translate(cx,128);g.fillStyle='#ffffff';g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?22:54;g.lineTo(Math.cos(a)*r,Math.sin(a)*r)}g.closePath();g.fill();g.restore()});
@@ -491,8 +496,8 @@ const rainbowMat=(()=>{const c=mkCanvas(512,256),g=c.getContext('2d');COLORS.for
 const fireMat=(()=>{const c=mkCanvas(256,128),g=c.getContext('2d'),r=rng(77);g.fillStyle='#ff5a0a';g.fillRect(0,0,256,128);
   for(let i=0;i<160;i++){g.fillStyle=pickR(r,['rgba(255,220,90,.5)','rgba(255,140,30,.5)','rgba(200,30,0,.45)']);g.beginPath();g.arc(r()*256,r()*128,3+r()*12,0,TAU);g.fill()}
   const tx=canvasTex(c);return new THREE.MeshStandardMaterial({map:tx,emissiveMap:tx,emissive:0xffffff,emissiveIntensity:1.4,roughness:.4})})();
-const sphereGeo=new THREE.SphereGeometry(R/U,40,28);
-const pool=[];for(let i=0;i<220;i++){const m=new THREE.Mesh(sphereGeo,MATS[0]);m.castShadow=true;m.receiveShadow=true;m.visible=false;scene.add(m);pool.push(m)}
+const sphereGeo=Q>=2?new THREE.SphereGeometry(R/U,40,28):new THREE.SphereGeometry(R/U,24,16);
+const pool=[];for(let i=0;i<220;i++){const m=new THREE.Mesh(sphereGeo,MATS[0]);m.castShadow=true;m.receiveShadow=Q>=2;m.visible=false;scene.add(m);pool.push(m)}
 const mkSprite=()=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));s.visible=false;scene.add(s);return s};
 const halos=[];for(let i=0;i<16;i++)halos.push(mkSprite());
 const projMesh=new THREE.Mesh(sphereGeo,MATS[0]);projMesh.castShadow=true;projMesh.visible=false;scene.add(projMesh);
@@ -1167,13 +1172,24 @@ function fitCamera(){const w=pf.clientWidth,h=pf.clientHeight;if(!w||!h)return;c
     let x0=9,x1=-9,y0=9,y1=-9;C.forEach(([x,y])=>{_v.set(X3(x),0,Z3(y)).project(camera);x0=Math.min(x0,_v.x);x1=Math.max(x1,_v.x);y0=Math.min(y0,_v.y);y1=Math.max(y1,_v.y)});
     const need=Math.max((x1-x0)/1.98,(y1-y0)/1.98);dist*=Math.pow(need,.8);tz-=((y1+y0)/2)*dist*.2}
   camBase.copy(camera.position)}
-function resize(){const w=pf.clientWidth,h=pf.clientHeight;if(!w||!h)return;const dpr=Math.min(2,window.devicePixelRatio||1);
+function resize(){const w=pf.clientWidth,h=pf.clientHeight;if(!w||!h)return;const dpr=Math.min([1,1.5,2][Q],window.devicePixelRatio||1);
   renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);hdpr=dpr;hw=w;hh=h;hud.width=Math.round(w*dpr);hud.height=Math.round(h*dpr);fitCamera()}
 
 // ===================== LOOP + INPUT =====================
 let last=performance.now();
-function loop(now){const dt=Math.max(0,Math.min(.05,(now-last)/1000));last=now;if(state!=='paused')tt+=dt;update(dt);
-  if(state!=='paused'&&(++flTick%2===0))drawFL();sync(dt);renderer.render(scene,camera);drawHud();requestAnimationFrame(loop)}
+// Lowers the quality one step when a phone cannot keep up (under 40 images a second for 3 seconds of play).
+let qT=0,qN=0;
+function setQuality(q){if(q>=Q)return;Q=q;try{localStorage.setItem('mos.quality',String(Q))}catch(e){}
+  if(Q<2&&MATS[0].isMeshPhysicalMaterial)MATS.forEach((m,i)=>{MATS[i]=new THREE.MeshStandardMaterial({map:m.map,bumpMap:m.bumpMap,bumpScale:m.bumpScale,roughness:.08,metalness:0,envMap:m.envMap,envMapIntensity:1.7});m.dispose()});
+  if(Q<2){pool.forEach(m=>m.receiveShadow=false);renderer.shadowMap.type=THREE.PCFShadowMap;sun.shadow.mapSize.set(1024,1024);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
+  if(Q<1){sun.castShadow=false;idolLight.visible=false;dangerLights.forEach(l=>l.visible=false)}
+  scene.traverse(o=>{if(o.material)[].concat(o.material).forEach(m=>m.needsUpdate=true)});resize()}
+function watchSpeed(dt){if(state!=='play'||Q<=0||dt<=0){qT=0;qN=0;return}qT+=dt;qN++;
+  if(qT>=3){if(qN/qT<40)setQuality(Q-1);qT=0;qN=0}}
+function loop(now){const raw=Math.max(0,(now-last)/1000),dt=Math.min(.1,raw);last=now;watchSpeed(raw<.5?raw:0);
+  // The game keeps real speed even at low frame rates: big steps are cut into small ones (same physics as 40 fps).
+  if(state!=='paused')tt+=dt;let rest=dt;do{const st=Math.min(rest,.025);update(st);rest-=st}while(rest>1e-6);
+  if(state!=='paused'&&(++flTick%(Q>0?2:4)===0))drawFL();sync(dt);renderer.render(scene,camera);drawHud();requestAnimationFrame(loop)}
 const ray=new THREE.Raycaster(),boardPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-BALLY),_ndc=new THREE.Vector2(),_hit=new THREE.Vector3();
 function toBoard(e){const r=glc.getBoundingClientRect();_ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height*2-1));ray.setFromCamera(_ndc,camera);
   if(!ray.ray.intersectPlane(boardPlane,_hit))return null;return[_hit.x*U+CX,_hit.z*U+CZ]}
@@ -1196,7 +1212,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='p
 
 window.__mosPause=()=>{if(state==='play')showPause()};
 window.__mosBack=()=>{if(state==='play'){showPause();return'ok'}if(state==='paused'&&curOv===showPause){resumeGame();return'ok'}if(curOv===showHome)return'exit';if(curOv===showShop&&shopBack){shopBack();return'ok'}showHome();return'ok'};
-window.__mos={tick:dt=>{update(dt);sync(dt)},snap:()=>({cur,proj:!!proj,sc:[SC.x,SC.y],balls:TR.flatMap(T=>T.balls.filter(b=>b.s>30&&b.s<T.L-20).map(b=>({c:b.c,p:tpos(T,b.s)})))}),aimFire:(x,y)=>{aim=Math.atan2(y-SC.y,x-SC.x);window.__mos.fire(x,y)},get state(){return state},start:n=>{newSession();startLevel(n)},info:()=>({LV,state,score,lives,tracks:TR.map(T=>T.balls.length+'/'+T.toSpawn),theme:theme.k,crit:critters.length}),
+window.__mos={get quality(){return Q},setQuality:q=>setQuality(q),tick:dt=>{update(dt);sync(dt)},snap:()=>({cur,proj:!!proj,sc:[SC.x,SC.y],balls:TR.flatMap(T=>T.balls.filter(b=>b.s>30&&b.s<T.L-20).map(b=>({c:b.c,p:tpos(T,b.s)})))}),aimFire:(x,y)=>{aim=Math.atan2(y-SC.y,x-SC.x);window.__mos.fire(x,y)},get state(){return state},start:n=>{newSession();startLevel(n)},info:()=>({LV,state,score,lives,tracks:TR.map(T=>T.balls.length+'/'+T.toSpawn),theme:theme.k,crit:critters.length}),
   fire:(x,y)=>{const r=glc.getBoundingClientRect();_v.set(X3(x),BALLY,Z3(y)).project(camera);glc.dispatchEvent(new PointerEvent('pointerdown',{clientX:r.left+(_v.x+1)/2*r.width,clientY:r.top+(1-_v.y)/2*r.height,bubbles:true}))},
   levels:showLevels,home:showHome,setLang,activate:(p)=>{const T=TR[0];const b=T.balls.find(q=>q.s>0);if(b){const[x,y]=tpos(T,b.s);activate({p,x,y,c:b.c})}},trackBalls:()=>TR.map(T=>T.balls.filter(b=>b.s>20).slice(0,3).map(b=>tpos(T,b.s)))};
 new ResizeObserver(resize).observe(pf);resize();updTexts();showHome();requestAnimationFrame(loop);
