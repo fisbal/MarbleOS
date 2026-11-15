@@ -1167,7 +1167,10 @@ function useBoost(k){initAudio();if(state!=='play'){if(state==='menu')openShop('
 // ===================== CAMERA + RESIZE =====================
 const TILT=.16;
 function fitCamera(){const w=pf.clientWidth,h=pf.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();
-  const dir=new THREE.Vector3(0,Math.cos(TILT),Math.sin(TILT));let tz=0,dist=10;const C=[[-5,-5],[365,-5],[-5,565],[365,565]];
+  const dir=new THREE.Vector3(0,Math.cos(TILT),Math.sin(TILT));let tz=0,dist=10;
+  // Fit the whole carved frame (the band around the board runs from -42 to 402 across and -42 to 602 down),
+  // so the theme's border shows complete and centred on every screen instead of being cut on the sides and bottom.
+  const C=[[-44,-44],[404,-44],[-44,604],[404,604]];
   for(let it=0;it<80;it++){camTarget.set(0,0,tz);camera.position.copy(camTarget).addScaledVector(dir,dist);camera.lookAt(camTarget);camera.updateMatrixWorld();
     let x0=9,x1=-9,y0=9,y1=-9;C.forEach(([x,y])=>{_v.set(X3(x),0,Z3(y)).project(camera);x0=Math.min(x0,_v.x);x1=Math.max(x1,_v.x);y0=Math.min(y0,_v.y);y1=Math.max(y1,_v.y)});
     const need=Math.max((x1-x0)/1.98,(y1-y0)/1.98);dist*=Math.pow(need,.8);tz-=((y1+y0)/2)*dist*.2}
